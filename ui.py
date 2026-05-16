@@ -444,7 +444,7 @@ class AICoachApp(tk.Tk):
                   font=self.font_body, bg="#1a5a8a", fg=WHITE, relief="flat",
                   padx=15, pady=8, cursor="hand2",
                   command=lambda: __import__("subprocess").Popen(
-                      ["open", "https://ai-coach-leaderboard.fcy.workers.dev"])
+                      ["open", "https://ai-coach-booth.pages.dev"])
                   ).pack(side="left", padx=10)
 
         tk.Button(btn_frame, text="🔄 下一位挑戰者",

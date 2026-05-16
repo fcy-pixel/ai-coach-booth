@@ -1,12 +1,7 @@
-name = "ai-coach-leaderboard"
-main = "src/index.js"
-compatibility_date = "2024-01-01"
-compatibility_flags = ["nodejs_compat"]
+name = "ai-coach-booth"
+pages_build_output_dir = "public"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "ai-coach-db"
 database_id = "531d5609-7239-47fb-8a68-609bf90f8a08"
-
-[assets]
-directory = "./public"

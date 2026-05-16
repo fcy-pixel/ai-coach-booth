@@ -9,7 +9,7 @@ import urllib.request
 import urllib.error
 import json
 
-CLOUD_API = "https://ai-coach-leaderboard.fcy.workers.dev/api/score"
+CLOUD_API = "https://ai-coach-booth.pages.dev/api/score"
 
 
 def sync_score(player_data, squat_summary, balance_summary, reaction_summary=None,
