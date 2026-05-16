@@ -1,8 +1,463 @@
 <!DOCTYPE html>
-<html lang="zh-HK">
+<html lang="zh-TW">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Coach 體能挑戰站</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d1b2a; --card: #1b2838; --green: #1db954;
+      --blue: #4fc3f7; --yellow: #ffd700; --orange: #ff9800;
+      --red: #f44336; --text: #e8eaf6; --muted: #78909c;
+    }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system,'PingFang TC','Microsoft JhengHei',sans-serif; min-height: 100vh; }
+    .tab-bar { display: flex; background: var(--card); border-bottom: 2px solid var(--green); position: sticky; top: 0; z-index: 100; }
+    .tab-btn { flex: 1; padding: 14px; text-align: center; font-size: 1.05rem; cursor: pointer; border: none; background: none; color: var(--muted); transition: all .2s; font-family: inherit; }
+    .tab-btn.active { color: var(--green); border-bottom: 3px solid var(--green); font-weight: bold; }
+    .panel { display: none; padding: 16px; max-width: 620px; margin: 0 auto; }
+    .panel.active { display: block; }
+    .screen { display: none; }
+    .screen.active { display: block; }
+    .card { background: var(--card); border-radius: 12px; padding: 18px; margin-bottom: 14px; }
+    h1 { font-size: 1.8rem; color: var(--green); margin-bottom: 6px; }
+    h2 { font-size: 1.3rem; margin-bottom: 10px; }
+    h3 { font-size: 1rem; color: var(--blue); margin-bottom: 8px; }
+    .form-group { margin-bottom: 12px; }
+    .form-group label { display: block; font-size: .85rem; color: var(--muted); margin-bottom: 4px; }
+    .form-group input { width: 100%; padding: 10px 12px; background: var(--bg); border: 1px solid #2a3a4a; border-radius: 8px; color: var(--text); font-size: 1rem; font-family: inherit; }
+    .form-group input:focus { outline: none; border-color: var(--green); }
+    .btn { display: block; width: 100%; padding: 13px; border: none; border-radius: 10px; font-size: 1rem; cursor: pointer; transition: opacity .2s; font-family: inherit; font-weight: bold; }
+    .btn:hover { opacity: .85; }
+    .btn-green { background: var(--green); color: #fff; }
+    .btn-outline { background: transparent; border: 2px solid var(--green); color: var(--green); }
+    .btn-blue { background: var(--blue); color: #000; }
+    .mt { margin-top: 12px; } .mb { margin-bottom: 12px; }
+    .cam-wrap { background: #000; border-radius: 10px; overflow: hidden; }
+    canvas.cam { width: 100%; display: block; }
+    .big-num { font-size: 5rem; font-weight: 900; color: var(--green); text-align: center; line-height: 1; }
+    .unit-text { text-align: center; color: var(--muted); font-size: .9rem; margin-top: 4px; }
+    .status-bar { text-align: center; padding: 9px 12px; border-radius: 8px; font-size: .95rem; margin: 8px 0; }
+    .s-ok   { background: rgba(29,185,84,.15);  color: var(--green); }
+    .s-warn { background: rgba(255,152,0,.15);   color: var(--orange); }
+    .s-info { background: rgba(79,195,247,.15);  color: var(--blue); }
+    .s-err  { background: rgba(244,67,54,.15);   color: var(--red); }
+    .timer-badge { font-size: 1.5rem; font-weight: bold; color: var(--orange); }
+    #rx-zone { height: 180px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; font-weight: bold; cursor: pointer; user-select: none; transition: background .1s; }
+    .score-row { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid #1e2d3d; }
+    .score-row:last-child { border-bottom: none; }
+    .score-lbl { color: var(--muted); font-size: .95rem; }
+    .score-num { font-size: 1.2rem; font-weight: bold; color: var(--green); }
+    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+    .stat-card { background: var(--card); border-radius: 10px; padding: 12px; text-align: center; }
+    .stat-val { font-size: 1.5rem; font-weight: bold; color: var(--green); }
+    .stat-lbl { font-size: .75rem; color: var(--muted); margin-top: 3px; }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: var(--green); color: #fff; padding: 9px 5px; text-align: center; font-size: .8rem; }
+    td { padding: 8px 5px; text-align: center; border-bottom: 1px solid #1a2838; font-size: .85rem; }
+    tr:nth-child(even) td { background: rgba(255,255,255,.02); }
+    .progress-track { background: #1e2d3d; border-radius: 4px; height: 6px; overflow: hidden; margin: 6px 0; }
+    .progress-fill { height: 100%; background: var(--green); transition: width .3s; }
+    .spinner { width: 44px; height: 44px; border: 4px solid #1e2d3d; border-top-color: var(--green); border-radius: 50%; animation: spin .8s linear infinite; margin: 16px auto; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .tc { text-align: center; } .text-muted { color: var(--muted); }
+    /* Leaderboard score bar */
+    .bar-wrap { background: #1e2d3d; border-radius: 4px; height: 7px; flex: 1; min-width: 50px; }
+    .bar-fill { height: 100%; border-radius: 4px; background: var(--green); transition: width .6s; }
+    .score-bar { display: flex; align-items: center; gap: 6px; justify-content: center; }
+  </style>
+</head>
+<body>
+
+<video id="cam-video" playsinline muted style="position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;"></video>
+
+<nav class="tab-bar">
+  <button class="tab-btn active" onclick="switchTab('game')">🎮 體能挑戰</button>
+  <button class="tab-btn" onclick="switchTab('leaderboard')">🏆 排行榜</button>
+</nav>
+
+<!-- ===== GAME PANEL ===== -->
+<div id="panel-game" class="panel active">
+
+  <div id="screen-welcome" class="screen active">
+    <div class="card tc" style="padding:24px 20px;">
+      <div style="font-size:3.2rem;">🏃</div>
+      <h1>AI Coach</h1>
+      <p class="text-muted">STEAM 體能挑戰站</p>
+    </div>
+    <div class="card">
+      <h3>輸入你的資料</h3>
+      <div class="form-group"><label>姓名</label><input id="inp-name" type="text" placeholder="你的名字" maxlength="20"></div>
+      <div class="form-group"><label>年齡</label><input id="inp-age" type="number" placeholder="例：10" min="5" max="20"></div>
+      <div class="form-group"><label>班別</label><input id="inp-class" type="text" placeholder="例：5A" maxlength="10"></div>
+      <button class="btn btn-green mt" onclick="startGame()">🚀 開始挑戰！</button>
+    </div>
+    <div class="card">
+      <h3>目前榜首</h3>
+      <div id="mini-lb"><p class="text-muted" style="font-size:.9rem;">載入中...</p></div>
+    </div>
+  </div>
+
+  <div id="screen-loading" class="screen">
+    <div class="card tc" style="padding:40px 20px;">
+      <div class="spinner"></div>
+      <h2 id="load-msg">載入 AI 模型中...</h2>
+      <p class="text-muted mt" style="font-size:.85rem;">首次載入約需 15–30 秒，請稍候<br>需要網路及鏡頭授權</p>
+      <button class="btn btn-outline mt" style="width:auto;padding:8px 20px;font-size:.9rem;" onclick="showScreen('welcome')">← 返回</button>
+    </div>
+  </div>
+
+  <div id="screen-squat" class="screen">
+    <div class="card" style="padding:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <h2 style="margin:0;">💪 深蹲挑戰</h2>
+        <span class="timer-badge" id="sq-timer">30</span>
+      </div>
+      <div class="cam-wrap"><canvas id="cv-squat" class="cam" width="640" height="480"></canvas></div>
+      <div id="sq-status" class="status-bar s-info">站在鏡頭前，確保全身（含腿部）可見，然後開始深蹲！</div>
+    </div>
+    <div class="card tc">
+      <p class="text-muted mb" style="font-size:.9rem;">深蹲次數</p>
+      <div class="big-num" id="sq-count">0</div>
+      <div class="unit-text" id="sq-angle">膝蓋角度：--°</div>
+    </div>
+  </div>
+
+  <div id="screen-balance" class="screen">
+    <div class="card" style="padding:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <h2 style="margin:0;">🦩 平衡挑戰</h2>
+        <span class="timer-badge" id="bal-timer">20</span>
+      </div>
+      <div class="cam-wrap"><canvas id="cv-balance" class="cam" width="640" height="480"></canvas></div>
+      <div id="bal-status" class="status-bar s-info">單腳站立，盡量保持靜止！</div>
+    </div>
+    <div class="card tc">
+      <p class="text-muted mb" style="font-size:.9rem;">累計平衡時間</p>
+      <div class="big-num" id="bal-hold">0.0</div>
+      <div class="unit-text">秒</div>
+    </div>
+  </div>
+
+  <div id="screen-reaction" class="screen">
+    <div class="card">
+      <h2>⚡ 反應力挑戰</h2>
+      <p class="text-muted mb" style="font-size:.9rem;">出現<strong style="color:var(--green);">綠色</strong>時，立即點擊畫面（或按空白鍵）！</p>
+      <div class="progress-track"><div class="progress-fill" id="rx-progress" style="width:0%"></div></div>
+      <p class="tc text-muted mt" id="rx-round" style="font-size:.9rem;">第 0 / 5 次</p>
+    </div>
+    <div id="rx-zone" style="background:#1e2d3d;" onclick="rxTap()"><span id="rx-msg">準備中...</span></div>
+    <div class="card mt">
+      <h3>反應時間記錄</h3>
+      <div id="rx-log" class="text-muted" style="font-size:.85rem;line-height:1.8;">-</div>
+    </div>
+  </div>
+
+  <div id="screen-results" class="screen">
+    <div class="card tc" style="padding:24px 20px;">
+      <div style="font-size:2.5rem;" id="res-stars">⭐⭐⭐</div>
+      <div style="font-size:4rem;font-weight:900;color:var(--green);" id="res-total">--</div>
+      <p class="text-muted">總分（滿分 100）</p>
+      <p id="res-label" style="color:var(--orange);font-size:1.2rem;margin-top:6px;">--</p>
+    </div>
+    <div class="card">
+      <h3>詳細成績</h3>
+      <div class="score-row"><span class="score-lbl">💪 深蹲</span><span class="score-num" id="r-sq">--</span></div>
+      <div class="score-row"><span class="score-lbl">🦩 平衡</span><span class="score-num" id="r-bal">--</span></div>
+      <div class="score-row"><span class="score-lbl">⚡ 反應</span><span class="score-num" id="r-rx">--</span></div>
+    </div>
+    <div id="cloud-msg" class="status-bar s-info mb">正在上傳成績...</div>
+    <button class="btn btn-blue mb" onclick="switchTab('leaderboard')">🏆 查看排行榜</button>
+    <button class="btn btn-outline" onclick="resetGame()">🔄 再挑戰一次</button>
+  </div>
+
+</div>
+
+<!-- ===== LEADERBOARD PANEL ===== -->
+<div id="panel-leaderboard" class="panel">
+  <div class="card tc" style="padding:16px 20px;">
+    <h1>🏆 排行榜</h1>
+    <p class="text-muted" id="lb-time" style="font-size:.85rem;">-</p>
+  </div>
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-val" id="s-total">-</div><div class="stat-lbl">參加人數</div></div>
+    <div class="stat-card"><div class="stat-val" id="s-top">-</div><div class="stat-lbl">最高分</div></div>
+    <div class="stat-card"><div class="stat-val" id="s-avg">-</div><div class="stat-lbl">平均分</div></div>
+    <div class="stat-card"><div class="stat-val" id="s-bal">-</div><div class="stat-lbl">平均平衡(秒)</div></div>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden;">
+    <table>
+      <thead>
+        <tr><th>名次</th><th>姓名</th><th>班別</th><th>總分</th><th>深蹲</th><th>平衡</th><th>反應</th></tr>
+      </thead>
+      <tbody id="lb-body"><tr><td colspan="7" style="padding:20px;">載入中...</td></tr></tbody>
+    </table>
+  </div>
+  <button class="btn btn-outline mt" onclick="loadLB()">🔄 刷新排行榜</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.3/dist/pose-detection.min.js"></script>
+<script>
+'use strict';
+const API = '';
+let detector = null, camStream = null, raf = null;
+let pName = '', pAge = 0, pClass = '';
+let sqScore = 0, balScore = 0, rxScore = 0;
+let sqCount = 0, sqAcc = 0, balTime = 0, avgRxMs = 0;
+
+const BONES = [[5,6],[5,7],[7,9],[6,8],[8,10],[5,11],[6,12],[11,12],[11,13],[13,15],[12,14],[14,16]];
+
+function switchTab(tab) {
+  ['game','leaderboard'].forEach(t => document.getElementById('panel-'+t).classList.toggle('active', t===tab));
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active',(i===0&&tab==='game')||(i===1&&tab==='leaderboard')));
+  if (tab === 'leaderboard') loadLB();
+}
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-'+id).classList.add('active');
+}
+function setStatus(id, text, cls) {
+  const el = document.getElementById(id);
+  el.textContent = text; el.className = 'status-bar ' + cls;
+}
+
+window.addEventListener('load', loadMiniLB);
+
+async function loadMiniLB() {
+  const el = document.getElementById('mini-lb');
+  try {
+    const d = await fetch(API+'/api/leaderboard?limit=3').then(r=>r.json());
+    if (!d.leaderboard?.length) { el.innerHTML='<p class="text-muted" style="font-size:.9rem;">還沒有人挑戰！快來第一個！</p>'; return; }
+    el.innerHTML = d.leaderboard.map((p,i)=>`
+      <div class="score-row">
+        <span>${['🥇','🥈','🥉'][i]} ${p.name} <small class="text-muted">${p.class_name||''}</small></span>
+        <span class="score-num">${p.total_score}</span>
+      </div>`).join('');
+  } catch { el.innerHTML='<p class="text-muted" style="font-size:.9rem;">-</p>'; }
+}
+
+function startGame() {
+  pName  = document.getElementById('inp-name').value.trim();
+  pAge   = parseInt(document.getElementById('inp-age').value)||0;
+  pClass = document.getElementById('inp-class').value.trim();
+  if (!pName) { alert('請輸入姓名！'); return; }
+  showScreen('loading');
+  initPose();
+}
+
+async function initPose() {
+  const msg = t => { document.getElementById('load-msg').textContent = t; };
+  try {
+    msg('載入 TensorFlow.js...');
+    await tf.ready();
+    msg('初始化 MoveNet 姿勢模型...');
+    detector = await poseDetection.createDetector(
+      poseDetection.SupportedModels.MoveNet,
+      { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING }
+    );
+    msg('開啟鏡頭...');
+    camStream = await navigator.mediaDevices.getUserMedia({ video:{width:640,height:480,facingMode:'user'}, audio:false });
+    const video = document.getElementById('cam-video');
+    video.srcObject = camStream;
+    await video.play();
+    showScreen('squat');
+    runSquat(video);
+  } catch(err) {
+    document.getElementById('load-msg').textContent = '錯誤：' + err.message;
+  }
+}
+
+function calcAngle(a, b, c) {
+  const ax=a.x-b.x, ay=a.y-b.y, cx=c.x-b.x, cy=c.y-b.y;
+  const dot=ax*cx+ay*cy, mag=Math.sqrt(ax*ax+ay*ay)*Math.sqrt(cx*cx+cy*cy);
+  return mag===0 ? 0 : Math.acos(Math.max(-1,Math.min(1,dot/mag)))*180/Math.PI;
+}
+
+function drawFrame(ctx, video, cW, cH, kps) {
+  ctx.save(); ctx.scale(-1,1); ctx.drawImage(video,-cW,0,cW,cH); ctx.restore();
+  if (!kps) return;
+  const sx=cW/(video.videoWidth||640), sy=cH/(video.videoHeight||480);
+  ctx.strokeStyle='#1db954'; ctx.lineWidth=2.5;
+  for (const [i,j] of BONES) {
+    const a=kps[i], b=kps[j];
+    if (a.score>.3&&b.score>.3) { ctx.beginPath(); ctx.moveTo(cW-a.x*sx,a.y*sy); ctx.lineTo(cW-b.x*sx,b.y*sy); ctx.stroke(); }
+  }
+  ctx.fillStyle='#4fc3f7';
+  for (const kp of kps) { if(kp.score>.3){ctx.beginPath();ctx.arc(cW-kp.x*sx,kp.y*sy,5,0,2*Math.PI);ctx.fill();} }
+}
+
+function runSquat(video) {
+  const canvas=document.getElementById('cv-squat'), ctx=canvas.getContext('2d');
+  const cW=canvas.width, cH=canvas.height;
+  let count=0, state='up', good=0, frames=0, tLeft=30, done=false;
+  const tick=setInterval(()=>{tLeft--;document.getElementById('sq-timer').textContent=tLeft;},1000);
+  setTimeout(()=>{done=true;clearInterval(tick);},30000);
+  const loop=async()=>{
+    if(done){
+      if(raf)cancelAnimationFrame(raf);
+      sqCount=count; sqAcc=frames>0?Math.round(good/frames*100):0;
+      sqScore=Math.min(Math.round(Math.min(count*10,80)+sqAcc*0.2),100);
+      setStatus('sq-status',`完成！深蹲 ${count} 次 👍`,'s-ok');
+      setTimeout(()=>runBalance(video),1500); return;
+    }
+    try {
+      const poses=await detector.estimatePoses(video);
+      const kps=poses[0]?.keypoints;
+      drawFrame(ctx,video,cW,cH,kps);
+      if(kps){
+        const L=[kps[11],kps[13],kps[15]], R=[kps[12],kps[14],kps[16]];
+        const [hip,knee,ank]=L.reduce((s,k)=>s+k.score,0)>=R.reduce((s,k)=>s+k.score,0)?L:R;
+        if(hip.score>.35&&knee.score>.35&&ank.score>.35){
+          const deg=Math.round(calcAngle(hip,knee,ank));
+          document.getElementById('sq-angle').textContent=`膝蓋角度：${deg}°`;
+          frames++;
+          if(deg<100){good+=0.5;if(state==='up'){state='down';setStatus('sq-status','蹲到底再站起來！','s-warn');}}
+          else if(deg>155){good++;if(state==='down'){count++;state='up';document.getElementById('sq-count').textContent=count;setStatus('sq-status',`深蹲 ${count} 次 🎉`,'s-ok');}}
+        } else { document.getElementById('sq-angle').textContent='請確保全身（含腿部）在鏡頭內'; }
+      }
+    } catch(e){console.error(e);}
+    raf=requestAnimationFrame(loop);
+  };
+  loop();
+}
+
+function runBalance(video) {
+  showScreen('balance');
+  const canvas=document.getElementById('cv-balance'), ctx=canvas.getContext('2d');
+  const cW=canvas.width, cH=canvas.height;
+  let hold=0, tLeft=20, done=false, prevHipX=null;
+  const tick=setInterval(()=>{tLeft--;document.getElementById('bal-timer').textContent=tLeft;},1000);
+  setTimeout(()=>{done=true;clearInterval(tick);},20000);
+  const loop=async()=>{
+    if(done){
+      if(raf)cancelAnimationFrame(raf);
+      balTime=hold; balScore=Math.min(Math.round(hold/10*100),100);
+      setStatus('bal-status',`完成！平衡 ${hold.toFixed(1)} 秒 🦩`,'s-ok');
+      setTimeout(startRx,1500); return;
+    }
+    try {
+      const poses=await detector.estimatePoses(video);
+      const kps=poses[0]?.keypoints;
+      drawFrame(ctx,video,cW,cH,kps);
+      if(kps){
+        const lh=kps[11], rh=kps[12];
+        if(lh.score>.3&&rh.score>.3){
+          const hipX=(lh.x+rh.x)/2;
+          if(prevHipX!==null){
+            if(Math.abs(hipX-prevHipX)<15){hold+=1/30;document.getElementById('bal-hold').textContent=hold.toFixed(1);setStatus('bal-status',`保持！${hold.toFixed(1)} 秒 ✅`,'s-ok');}
+            else{setStatus('bal-status','太搖晃了！盡量保持靜止！','s-warn');}
+          }
+          prevHipX=hipX;
+        }
+      }
+    } catch(e){console.error(e);}
+    raf=requestAnimationFrame(loop);
+  };
+  loop();
+}
+
+let rxRound=0, rxTimes=[], rxReady=false, rxStart=0, rxTO=null;
+function startRx(){
+  if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null;}
+  showScreen('reaction');
+  rxRound=0;rxTimes=[];rxReady=false;
+  document.getElementById('rx-round').textContent='第 0 / 5 次';
+  document.getElementById('rx-log').textContent='-';
+  document.getElementById('rx-progress').style.width='0%';
+  setTimeout(rxNext,800);
+}
+function rxNext(){
+  if(rxRound>=5){showResults();return;}
+  const zone=document.getElementById('rx-zone'), msg=document.getElementById('rx-msg');
+  zone.style.background='#1e2d3d'; msg.textContent='準備...'; rxReady=false;
+  rxTO=setTimeout(()=>{zone.style.background='var(--green)';msg.textContent='點擊！';rxReady=true;rxStart=Date.now();},1500+Math.random()*2500);
+}
+function rxTap(){
+  if(!document.getElementById('screen-reaction').classList.contains('active'))return;
+  if(!rxReady){
+    if(rxTO)clearTimeout(rxTO);
+    document.getElementById('rx-zone').style.background='var(--red)';
+    document.getElementById('rx-msg').textContent='太早了！再等等...';
+    setTimeout(rxNext,1000);return;
+  }
+  const rt=Date.now()-rxStart;
+  rxTimes.push(rt);rxRound++;
+  document.getElementById('rx-zone').style.background='#1565c0';
+  document.getElementById('rx-msg').textContent=`${rt} ms ⚡`;
+  document.getElementById('rx-progress').style.width=(rxRound/5*100)+'%';
+  document.getElementById('rx-round').textContent=`第 ${rxRound} / 5 次`;
+  document.getElementById('rx-log').textContent=rxTimes.map((t,i)=>`第${i+1}次: ${t}ms`).join(' | ');
+  rxReady=false;setTimeout(rxNext,700);
+}
+document.addEventListener('keydown',e=>{if(e.code==='Space'){e.preventDefault();rxTap();}});
+
+function showResults(){
+  showScreen('results');
+  avgRxMs=rxTimes.length?Math.round(rxTimes.reduce((a,b)=>a+b,0)/rxTimes.length):350;
+  rxScore=Math.max(0,Math.min(100,Math.round((500-avgRxMs)/350*100)));
+  const total=Math.round((sqScore+balScore+rxScore)/3);
+  let stars,label;
+  if(total>=90){stars='⭐⭐⭐⭐⭐';label='卓越！太厲害了！';}
+  else if(total>=75){stars='⭐⭐⭐⭐';label='優秀！繼續保持！';}
+  else if(total>=60){stars='⭐⭐⭐';label='良好！繼續努力！';}
+  else if(total>=40){stars='⭐⭐';label='不錯！多加練習！';}
+  else{stars='⭐';label='加油！你能做到的！';}
+  document.getElementById('res-stars').textContent=stars;
+  document.getElementById('res-total').textContent=total;
+  document.getElementById('res-label').textContent=label;
+  document.getElementById('r-sq').textContent=`${sqScore} 分（深蹲 ${sqCount} 次）`;
+  document.getElementById('r-bal').textContent=`${balScore} 分（${balTime.toFixed(1)} 秒）`;
+  document.getElementById('r-rx').textContent=`${rxScore} 分（${avgRxMs} ms）`;
+  submitScore(total);
+}
+async function submitScore(total){
+  const el=document.getElementById('cloud-msg');
+  try{
+    const r=await fetch(API+'/api/score',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({name:pName,age:pAge,class_name:pClass,squat_score:sqScore,balance_score:balScore,reaction_score:rxScore,squat_count:sqCount,squat_accuracy:sqAcc,balance_time:balTime,reaction_time:avgRxMs/1000})});
+    const d=await r.json();
+    if(d.success){el.className='status-bar s-ok';el.textContent=`✅ 成功上傳！你排名第 ${d.rank} / ${d.total_players} 名！`;}
+    else{el.className='status-bar s-warn';el.textContent='⚠️ 上傳失敗：'+(d.error||'');}
+  }catch(e){el.className='status-bar s-warn';el.textContent='⚠️ 無法連線雲端';}
+}
+function resetGame(){
+  sqScore=balScore=rxScore=0;sqCount=sqAcc=0;balTime=avgRxMs=0;
+  if(raf){cancelAnimationFrame(raf);raf=null;}
+  if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null;}
+  showScreen('welcome');loadMiniLB();
+}
+
+async function loadLB(){
+  try{
+    const [r1,r2]=await Promise.all([fetch(API+'/api/leaderboard?limit=20'),fetch(API+'/api/stats')]);
+    const lb=await r1.json(), st=await r2.json();
+    const s=st.stats||{};
+    document.getElementById('s-total').textContent=s.total_players??'-';
+    document.getElementById('s-top').textContent=s.top_score??'-';
+    document.getElementById('s-avg').textContent=s.avg_score?Math.round(s.avg_score):'-';
+    document.getElementById('s-bal').textContent=s.avg_balance?Number(s.avg_balance).toFixed(1):'-';
+    const tbody=document.getElementById('lb-body');
+    if(!lb.leaderboard?.length){tbody.innerHTML='<tr><td colspan="7" style="padding:20px;">還沒有人挑戰！快去玩！</td></tr>';return;}
+    const max=lb.leaderboard[0]?.total_score||100;
+    tbody.innerHTML=lb.leaderboard.map((p,i)=>{
+      const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1);
+      const pct=Math.round(p.total_score/max*100);
+      return`<tr>
+        <td>${medal}</td>
+        <td style="${i<3?'font-weight:bold;':''}">${p.name}</td>
+        <td>${p.class_name||'-'}</td>
+        <td><div class="score-bar"><div class="bar-wrap"><div class="bar-fill" style="width:${pct}%"></div></div><strong style="color:var(--green)">${p.total_score}</strong></div></td>
+        <td>${p.squat_score??'-'}</td><td>${p.balance_score??'-'}</td><td>${p.reaction_score??'-'}</td>
+      </tr>`;
+    }).join('');
+    document.getElementById('lb-time').textContent='更新時間：'+new Date().toLocaleTimeString('zh-TW');
+  }catch(e){document.getElementById('lb-body').innerHTML='<tr><td colspan="7">載入失敗</td></tr>';}
+}
+setInterval(()=>{if(document.getElementById('panel-leaderboard').classList.contains('active'))loadLB();},30000);
+</script>
+</body>
+</html>
 <title>🏃 AI 體能教練 · 排行榜</title>
 <style>
   :root {
