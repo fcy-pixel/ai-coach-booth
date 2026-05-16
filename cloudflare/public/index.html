@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🏃 AI 體能教練 · 排行榜</title>
+<style>
+  :root {
+    --bg: #0d1b2a;
+    --card: #1b2838;
+    --green: #1db954;
+    --yellow: #f5c518;
+    --white: #ffffff;
+    --grey: #aaaaaa;
+    --red: #e05252;
+    --blue: #4a9eff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+    background: var(--bg);
+    color: var(--white);
+    min-height: 100vh;
+  }
+
+  header {
+    background: linear-gradient(135deg, #0d1b2a 0%, #1a3a2a 100%);
+    border-bottom: 2px solid var(--green);
+    padding: 24px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  header h1 { font-size: 2rem; color: var(--green); }
+  header p  { color: var(--grey); font-size: 0.95rem; }
+
+  .stats-bar {
+    display: flex;
+    gap: 20px;
+    padding: 20px 32px;
+    flex-wrap: wrap;
+  }
+  .stat-card {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 16px 24px;
+    flex: 1;
+    min-width: 140px;
+    text-align: center;
+    border: 1px solid #2a3a4a;
+  }
+  .stat-card .num  { font-size: 2rem; font-weight: bold; color: var(--green); }
+  .stat-card .lbl  { font-size: 0.8rem; color: var(--grey); margin-top: 4px; }
+
+  .section { padding: 0 32px 32px; }
+  .section h2 { font-size: 1.3rem; color: var(--yellow); margin-bottom: 16px; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--card);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  thead { background: #0f2a1a; }
+  th {
+    padding: 14px 16px;
+    text-align: left;
+    font-size: 0.85rem;
+    color: var(--grey);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  td { padding: 14px 16px; font-size: 0.95rem; border-top: 1px solid #2a3a4a; }
+  tr:hover td { background: #222f3e; }
+
+  .rank-1 td:first-child { color: #ffd700; font-size: 1.3rem; }
+  .rank-2 td:first-child { color: #c0c0c0; font-size: 1.2rem; }
+  .rank-3 td:first-child { color: #cd7f32; font-size: 1.1rem; }
+
+  .score-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .bar-wrap {
+    flex: 1;
+    background: #2a3a4a;
+    border-radius: 4px;
+    height: 8px;
+    min-width: 60px;
+  }
+  .bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: var(--green);
+    transition: width 0.6s ease;
+  }
+  .score-num { font-weight: bold; min-width: 36px; text-align: right; }
+
+  .badge {
+    display: inline-block;
+    background: #2a3a4a;
+    border-radius: 6px;
+    padding: 2px 10px;
+    font-size: 0.8rem;
+    color: var(--blue);
+  }
+
+  .refresh-btn {
+    background: var(--green);
+    color: white;
+    border: none;
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+    font-family: inherit;
+    transition: opacity 0.2s;
+  }
+  .refresh-btn:hover { opacity: 0.85; }
+  .refresh-btn:disabled { opacity: 0.5; cursor: default; }
+
+  .empty { text-align: center; color: var(--grey); padding: 40px; }
+  .loading { text-align: center; color: var(--grey); padding: 20px; }
+
+  footer {
+    text-align: center;
+    padding: 24px;
+    color: var(--grey);
+    font-size: 0.8rem;
+    border-top: 1px solid #1a2a3a;
+  }
+
+  @media (max-width: 600px) {
+    header h1 { font-size: 1.4rem; }
+    .section { padding: 0 16px 24px; }
+    .stats-bar { padding: 16px; }
+    td, th { padding: 10px 10px; font-size: 0.85rem; }
+    .bar-wrap { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🏃 AI 體能教練</h1>
+    <p>STEAM in PE · 即時排行榜</p>
+  </div>
+  <button class="refresh-btn" id="refreshBtn" onclick="loadAll()">🔄 更新</button>
+</header>
+
+<div class="stats-bar" id="statsBar">
+  <div class="stat-card"><div class="num" id="s-total">—</div><div class="lbl">參與人數</div></div>
+  <div class="stat-card"><div class="num" id="s-avg">—</div><div class="lbl">平均分</div></div>
+  <div class="stat-card"><div class="num" id="s-top">—</div><div class="lbl">最高分</div></div>
+  <div class="stat-card"><div class="num" id="s-squats">—</div><div class="lbl">平均深蹲次</div></div>
+  <div class="stat-card"><div class="num" id="s-balance">—</div><div class="lbl">平均平衡(s)</div></div>
+</div>
+
+<div class="section">
+  <h2>🏆 排行榜 Top 20</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>姓名</th>
+        <th>班別</th>
+        <th>總分</th>
+        <th>深蹲</th>
+        <th>平衡</th>
+        <th>反應</th>
+        <th>時間</th>
+      </tr>
+    </thead>
+    <tbody id="leaderboardBody">
+      <tr><td colspan="8" class="loading">載入中...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<footer>
+  AI 體能教練 · STEAM in PE 比賽項目 · 數據每 30 秒自動更新
+</footer>
+
+<script>
+  const API = "";  // same origin
+
+  function stars(score) {
+    if (score >= 90) return "⭐⭐⭐⭐⭐";
+    if (score >= 75) return "⭐⭐⭐⭐";
+    if (score >= 55) return "⭐⭐⭐";
+    if (score >= 35) return "⭐⭐";
+    return "⭐";
+  }
+
+  function timeAgo(isoStr) {
+    if (!isoStr) return "—";
+    const diff = Math.floor((Date.now() - new Date(isoStr)) / 1000);
+    if (diff < 60)  return `${diff}秒前`;
+    if (diff < 3600) return `${Math.floor(diff/60)}分鐘前`;
+    if (diff < 86400) return `${Math.floor(diff/3600)}小時前`;
+    return new Date(isoStr).toLocaleDateString("zh-HK");
+  }
+
+  async function loadStats() {
+    try {
+      const r = await fetch(`${API}/api/stats`);
+      const { stats } = await r.json();
+      if (!stats) return;
+      document.getElementById("s-total").textContent   = stats.total_players ?? "—";
+      document.getElementById("s-avg").textContent     = stats.avg_score ?? "—";
+      document.getElementById("s-top").textContent     = stats.top_score ?? "—";
+      document.getElementById("s-squats").textContent  = stats.avg_squats ?? "—";
+      document.getElementById("s-balance").textContent = stats.avg_balance ?? "—";
+    } catch(e) { console.warn("stats error", e); }
+  }
+
+  async function loadLeaderboard() {
+    const tbody = document.getElementById("leaderboardBody");
+    try {
+      const r = await fetch(`${API}/api/leaderboard?limit=20`);
+      const { leaderboard } = await r.json();
+
+      if (!leaderboard || leaderboard.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="empty">還沒有人挑戰！快去 Booth 試試！</td></tr>`;
+        return;
+      }
+
+      const maxScore = leaderboard[0]?.total_score || 100;
+
+      tbody.innerHTML = leaderboard.map((row, i) => {
+        const rank = i + 1;
+        const medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : rank;
+        const rowClass = rank <= 3 ? `rank-${rank}` : "";
+        const pct = Math.round((row.total_score / maxScore) * 100);
+
+        return `
+          <tr class="${rowClass}">
+            <td>${medal}</td>
+            <td><strong>${escHtml(row.name)}</strong></td>
+            <td><span class="badge">${escHtml(row.class_name || "—")}</span></td>
+            <td>
+              <div class="score-bar">
+                <div class="bar-wrap"><div class="bar-fill" style="width:${pct}%"></div></div>
+                <span class="score-num" style="color:${scoreColor(row.total_score)}">${row.total_score}</span>
+              </div>
+            </td>
+            <td>${row.squat_score ?? "—"}</td>
+            <td>${row.balance_score ?? "—"}</td>
+            <td>${row.reaction_score ?? "—"}</td>
+            <td style="color:#666;font-size:0.8rem">${timeAgo(row.played_at)}</td>
+          </tr>`;
+      }).join("");
+
+    } catch(e) {
+      tbody.innerHTML = `<tr><td colspan="8" class="empty">載入失敗，請稍後再試</td></tr>`;
+      console.error(e);
+    }
+  }
+
+  function scoreColor(s) {
+    if (s >= 80) return "#1db954";
+    if (s >= 60) return "#f5c518";
+    return "#e05252";
+  }
+
+  function escHtml(s) {
+    return String(s ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  async function loadAll() {
+    const btn = document.getElementById("refreshBtn");
+    btn.disabled = true;
+    btn.textContent = "載入中...";
+    await Promise.all([loadStats(), loadLeaderboard()]);
+    btn.disabled = false;
+    btn.textContent = "🔄 更新";
+  }
+
+  // Auto-refresh every 30 seconds
+  loadAll();
+  setInterval(loadAll, 30000);
+</script>
+</body>
+</html>

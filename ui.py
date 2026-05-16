@@ -14,6 +14,7 @@ from pose_detector import SquatDetector, BalanceDetector
 from data_store import save_player, get_rank, get_age_percentile, get_leaderboard
 from feedback_engine import generate_full_feedback
 from report_generator import generate_report
+from cloud_sync import sync_score
 
 
 # ── 顏色主題 ──
@@ -358,6 +359,20 @@ class AICoachApp(tk.Tk):
         player_data = get_player(player_id)
         feedback = generate_full_feedback(player_data)
 
+        # 同步到雲端排行榜（背景執行，不阻塞 UI）
+        self._cloud_rank_label = None
+        def _on_cloud_success(cloud_rank, cloud_total):
+            if self._cloud_rank_label:
+                self.after(0, lambda: self._cloud_rank_label.config(
+                    text=f"🌐 全球第 {cloud_rank} 名（共 {cloud_total} 人）",
+                    fg=GREEN
+                ))
+        sync_score(
+            player_data, squat, balance, reaction,
+            on_success=_on_cloud_success,
+            on_error=lambda e: None  # 靜默失敗，不影響 UI
+        )
+
         # ── UI ──
         canvas = tk.Frame(self, bg=BG)
         canvas.pack(fill="both", expand=True, padx=20, pady=10)
@@ -379,6 +394,11 @@ class AICoachApp(tk.Tk):
         if percentile:
             tk.Label(score_frame, text=f"超越同齡 {percentile}% 的人！",
                      font=self.font_body, bg=CARD, fg=GREEN).grid(row=1, column=2, padx=20)
+
+        # 雲端排名（等待 API 回應後更新）
+        self._cloud_rank_label = tk.Label(score_frame, text="🌐 正在同步雲端排名...",
+                                          font=self.font_small, bg=CARD, fg=GREY)
+        self._cloud_rank_label.grid(row=2, column=0, columnspan=3, pady=(8, 0), sticky="w")
 
         # 三項目分數
         items_frame = tk.Frame(canvas, bg=BG)
@@ -418,6 +438,13 @@ class AICoachApp(tk.Tk):
                   font=self.font_body, bg="#336699", fg=WHITE, relief="flat",
                   padx=15, pady=8, cursor="hand2",
                   command=lambda: self._generate_pdf(player_data, feedback, rank, total, percentile)
+                  ).pack(side="left", padx=10)
+
+        tk.Button(btn_frame, text="🌐 查看雲端排行榜",
+                  font=self.font_body, bg="#1a5a8a", fg=WHITE, relief="flat",
+                  padx=15, pady=8, cursor="hand2",
+                  command=lambda: __import__("subprocess").Popen(
+                      ["open", "https://ai-coach-leaderboard.fcy.workers.dev"])
                   ).pack(side="left", padx=10)
 
         tk.Button(btn_frame, text="🔄 下一位挑戰者",
